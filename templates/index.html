@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil - EduFlow-Check{% endblock %}
+
+{% block content %}
+<section class="accueil-section">
+    <h2>Liste des Présences</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}">
+        {% if category == 'error' %}⚠️{% else %}✅{% endif %} {{ message }}
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="stats">
+        <div class="stat-box">
+            <span class="stat-number">{{ total }}</span>
+            <span class="stat-label">Total Enregistrements</span>
+        </div>
+    </div>
+
+    {% if presences %}
+    <!-- Recherche rapide côté client -->
+    <div class="quick-search-bar">
+        <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="quickSearch" placeholder="Recherche rapide dans le tableau..." autocomplete="off">
+        </div>
+        <span class="quick-search-count" id="searchCount"></span>
+    </div>
+
+    <div class="table-container">
+        <table class="presences-table" id="presencesTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nom de l'Étudiant</th>
+                    <th>Statut</th>
+                    <th>Heure de Présence</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in presences %}
+                <tr class="presence-row {% if item.statut == 'Absent' %}absent-row{% endif %}">
+                    <td class="index">{{ loop.index }}</td>
+                    <td class="nom">{{ item.nom }}</td>
+                    <td class="statut">
+                        <span
+                            class="badge {% if item.statut == 'Présent' %}badge-present{% else %}badge-absent{% endif %}">
+                            {% if item.statut == 'Présent' %}✓ Présent{% else %}✗ Absent{% endif %}
+                        </span>
+                    </td>
+                    <td class="heure">{{ item.heure }}</td>
+                    <td class="date">{{ item.date.strftime('%d/%m/%Y') if item.date else '' }}</td>
+                    <td class="actions-cell">
+                        <a href="{{ url_for('modifier', id=item.id, redirect_to=url_for('accueil')) }}"
+                            class="action-btn btn-edit" title="Modifier">
+                            ✏️
+                        </a>
+                        <a href="{{ url_for('supprimer', id=item.id, redirect_to=url_for('accueil')) }}"
+                            class="action-btn btn-delete" title="Supprimer"
+                            onclick="return confirm('Voulez-vous vraiment supprimer {{ item.nom }} ?')">
+                            🗑️
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('ajouter') }}" class="btn btn-primary">+ Ajouter un Étudiant</a>
+        <a href="{{ url_for('reinitialiser') }}" class="btn btn-danger">Vider la Liste</a>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p class="empty-message">❌ Aucun étudiant pointé pour le moment</p>
+        <a href="{{ url_for('ajouter') }}" class="btn btn-primary btn-large">Commencer à Pointer</a>
+    </div>
+    {% endif %}
+</section>
+
+<script>
+    // Recherche rapide côté client
+    const searchInput = document.getElementById('quickSearch');
+    const countSpan = document.getElementById('searchCount');
+    const table = document.getElementById('presencesTable');
+
+    if (searchInput && table) {
+        searchInput.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
+            const rows = table.querySelectorAll('tbody tr');
+            let visible = 0;
+
+            rows.forEach(row => {
+                const nom = row.querySelector('.nom');
+                const text = nom ? nom.textContent.toLowerCase() : '';
+
+                if (!query || text.includes(query)) {
+                    row.style.display = '';
+                    visible++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (query) {
+                countSpan.textContent = visible + ' résultat(s)';
+                countSpan.style.display = 'inline';
+            } else {
+                countSpan.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter Étudiant - EduFlow-Check{% endblock %}
+
+{% block content %}
+<section class="formulaire-section">
+    <h2>Ajouter un Étudiant</h2>
+
+    {% if erreur %}
+        <div class="alert alert-danger">
+            ⚠️ {{ erreur }}
+        </div>
+    {% endif %}
+
+    <div class="form-container">
+        <form method="POST" action="{{ url_for('ajouter') }}" class="form">
+            <div class="form-group">
+                <label for="nom">Nom de l'Étudiant :</label>
+                <input 
+                    type="text" 
+                    id="nom" 
+                    name="nom" 
+                    placeholder="Entrez le nom complet..." 
+                    required
+                    autofocus
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="statut">Statut de Présence :</label>
+                <select id="statut" name="statut" required>
+                    <option value="Présent" selected>✓ Présent</option>
+                    <option value="Absent">✗ Absent</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">✓ Pointer l'Étudiant</button>
+                <a href="{{ url_for('accueil') }}" class="btn btn-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="info-box">
+        <h3>💡 Information</h3>
+        <p>Remplissez le nom de l'étudiant et sélectionnez son statut de présence.</p>
+        <p>L'heure de pointage sera enregistrée automatiquement.</p>
+    </div>
+</section>
+{% endblock %}

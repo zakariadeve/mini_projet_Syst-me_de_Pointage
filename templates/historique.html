@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Historique - EduFlow-Check{% endblock %}
+
+{% block content %}
+<section class="accueil-section">
+    <h2>📜 Historique Complet des Présences</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}">
+        {% if category == 'error' %}⚠️{% else %}✅{% endif %} {{ message }}
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <!-- Barre de recherche et filtres -->
+    <div class="search-filter-bar">
+        <form method="GET" action="{{ url_for('historique') }}" class="filter-form" id="filterForm">
+            <div class="search-group">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" name="search" id="searchInput" placeholder="Rechercher un étudiant..."
+                        value="{{ search }}" autocomplete="off">
+                    {% if search %}
+                    <a href="{{ url_for('historique') }}" class="clear-search" title="Effacer">✕</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="filter-groups">
+                <div class="filter-group">
+                    <label for="statutFilter">📋 Statut</label>
+                    <select name="statut" id="statutFilter" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        <option value="Présent" {% if statut_filter=='Présent' %}selected{% endif %}>✓ Présent</option>
+                        <option value="Absent" {% if statut_filter=='Absent' %}selected{% endif %}>✗ Absent</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateFrom">📅 Du</label>
+                    <input type="date" name="date_from" id="dateFrom" value="{{ date_from }}"
+                        onchange="this.form.submit()">
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateTo">📅 Au</label>
+                    <input type="date" name="date_to" id="dateTo" value="{{ date_to }}" onchange="this.form.submit()">
+                </div>
+
+                <button type="submit" class="btn btn-filter">🔍 Filtrer</button>
+
+                {% if search or statut_filter or date_from or date_to %}
+                <a href="{{ url_for('historique') }}" class="btn btn-reset-filter">↺ Réinitialiser</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Résultats -->
+    {% if search or statut_filter or date_from or date_to %}
+    <div class="filter-results-info">
+        <span class="results-count">{{ presences|length }} résultat(s) trouvé(s)</span>
+        {% if search %}<span class="filter-tag">Nom: "{{ search }}"</span>{% endif %}
+        {% if statut_filter %}<span class="filter-tag">Statut: {{ statut_filter }}</span>{% endif %}
+        {% if date_from %}<span class="filter-tag">Du: {{ date_from }}</span>{% endif %}
+        {% if date_to %}<span class="filter-tag">Au: {{ date_to }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if presences %}
+    <div class="table-container">
+        <table class="presences-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nom de l'Étudiant</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in presences %}
+                <tr class="presence-row {% if item.statut == 'Absent' %}absent-row{% endif %}">
+                    <td class="index">{{ loop.index }}</td>
+                    <td class="nom">{{ item.nom }}</td>
+                    <td class="statut">
+                        <span
+                            class="badge {% if item.statut == 'Présent' %}badge-present{% else %}badge-absent{% endif %}">
+                            {% if item.statut == 'Présent' %}✓ Présent{% else %}✗ Absent{% endif %}
+                        </span>
+                    </td>
+                    <td class="date">{{ item.date.strftime('%d/%m/%Y') if item.date else '' }}</td>
+                    <td class="heure">{{ item.heure }}</td>
+                    <td class="actions-cell">
+                        <a href="{{ url_for('modifier', id=item.id, redirect_to=url_for('historique')) }}"
+                            class="action-btn btn-edit" title="Modifier">
+                            ✏️
+                        </a>
+                        <a href="{{ url_for('supprimer', id=item.id, redirect_to=url_for('historique')) }}"
+                            class="action-btn btn-delete" title="Supprimer"
+                            onclick="return confirm('Voulez-vous vraiment supprimer {{ item.nom }} ?')">
+                            🗑️
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Boutons d'export -->
+    <div class="export-bar">
+        <span class="export-label">📋 Exporter :</span>
+        <a href="{{ url_for('export_csv') }}" class="btn export-btn btn-csv">
+            <span class="export-icon">📄</span> CSV
+        </a>
+        <a href="{{ url_for('export_excel') }}" class="btn export-btn btn-excel">
+            <span class="export-icon">📊</span> Excel
+        </a>
+        <a href="{{ url_for('export_pdf') }}" class="btn export-btn btn-pdf">
+            <span class="export-icon">📕</span> PDF
+        </a>
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('accueil') }}" class="btn btn-primary">← Retour à l'Accueil</a>
+        <a href="{{ url_for('statistiques') }}" class="btn btn-secondary">📊 Statistiques</a>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        {% if search or statut_filter or date_from or date_to %}
+        <p class="empty-message">🔍 Aucun résultat trouvé pour cette recherche</p>
+        <a href="{{ url_for('historique') }}" class="btn btn-primary btn-large">Voir tout l'historique</a>
+        {% else %}
+        <p class="empty-message">❌ Aucune donnée dans l'historique</p>
+        <a href="{{ url_for('accueil') }}" class="btn btn-primary btn-large">Retour à l'Accueil</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+
+<style>
+    .date {
+        color: #718096;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}

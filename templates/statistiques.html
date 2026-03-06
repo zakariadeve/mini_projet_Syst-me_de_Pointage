@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques - EduFlow-Check{% endblock %}
+
+{% block content %}
+<section class="accueil-section">
+    <h2>📊 Statistiques des Présences</h2>
+
+    <!-- Stat Boxes -->
+    <div class="stats">
+        <div class="stat-box">
+            <span class="stat-number">{{ total }}</span>
+            <span class="stat-label">Total des Pointages</span>
+        </div>
+        <div class="stat-box" style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
+            <span class="stat-number">{{ presences_count }}</span>
+            <span class="stat-label">Présences</span>
+        </div>
+        <div class="stat-box" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+            <span class="stat-number">{{ absences_count }}</span>
+            <span class="stat-label">Absences</span>
+        </div>
+    </div>
+
+    {% if etudiants_counts %}
+
+    <!-- Statistiques Avancées -->
+    {% if plus_present or plus_absent %}
+    <div class="advanced-stats-section">
+        <h3>⏰ Statistiques Avancées</h3>
+        <div class="advanced-stats-grid">
+            {% if plus_present %}
+            <div class="advanced-stat-card card-present">
+                <div class="advanced-stat-icon">🏆</div>
+                <div class="advanced-stat-info">
+                    <span class="advanced-stat-title">Plus Présent</span>
+                    <span class="advanced-stat-name">{{ plus_present.nom }}</span>
+                    <div class="advanced-stat-details">
+                        <span class="detail-badge present">{{ plus_present.count }} présence(s)</span>
+                        <span class="detail-badge percentage">{{ plus_present.pourcentage }}%</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if plus_absent %}
+            <div class="advanced-stat-card card-absent">
+                <div class="advanced-stat-icon">⚠️</div>
+                <div class="advanced-stat-info">
+                    <span class="advanced-stat-title">Plus Absent</span>
+                    <span class="advanced-stat-name">{{ plus_absent.nom }}</span>
+                    <div class="advanced-stat-details">
+                        <span class="detail-badge absent">{{ plus_absent.count }} absence(s)</span>
+                        <span class="detail-badge percentage">{{ plus_absent.pourcentage }}% d'absence</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Graphiques -->
+    <div class="charts-section">
+        <h3>📈 Graphiques</h3>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4>Répartition Présences / Absences</h4>
+                <div class="chart-container">
+                    <canvas id="doughnutChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h4>Taux de Présence par Étudiant (%)</h4>
+                <div class="chart-container chart-container-large">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détails par étudiant -->
+    <div class="stats-info">
+        <h3>📋 Détails par Étudiant</h3>
+        <div class="stats-grid">
+            {% for nom, pourcentage in etudiants_pourcentage.items() %}
+            <div class="stat-card">
+                <div class="stat-nom">{{ nom }}</div>
+                <div class="stat-count">
+                    <span class="count-number">{{ pourcentage }}%</span>
+                    <span class="count-text">de présence</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill {% if pourcentage >= 75 %}fill-good{% elif pourcentage >= 50 %}fill-warning{% else %}fill-danger{% endif %}"
+                        style="width: {{ pourcentage }}%"></div>
+                </div>
+                <div class="stat-detail-row">
+                    <span class="mini-badge mini-present">✓ {{ etudiants_counts[nom] }} pointage(s)</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="export-bar">
+        <span class="export-label">📋 Exporter :</span>
+        <a href="{{ url_for('export_csv') }}" class="btn export-btn btn-csv">
+            <span class="export-icon">📄</span> CSV
+        </a>
+        <a href="{{ url_for('export_excel') }}" class="btn export-btn btn-excel">
+            <span class="export-icon">📊</span> Excel
+        </a>
+        <a href="{{ url_for('export_pdf') }}" class="btn export-btn btn-pdf">
+            <span class="export-icon">📕</span> PDF
+        </a>
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('accueil') }}" class="btn btn-primary">← Retour à l'Accueil</a>
+        <a href="{{ url_for('historique') }}" class="btn btn-secondary">📜 Voir l'Historique</a>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        <p class="empty-message">❌ Aucune donnée de pointage disponible</p>
+        <a href="{{ url_for('accueil') }}" class="btn btn-primary btn-large">Retour à l'Accueil</a>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+{% if etudiants_counts %}
+<script>
+    // Couleurs harmonieuses
+    const colors = [
+        '#667EEA', '#764BA2', '#F093FB', '#F5576C', '#4FACFE',
+        '#00F2FE', '#43E97B', '#FA709A', '#FEE140', '#A18CD1',
+        '#FBC2EB', '#8FD3F4', '#A6C0FE', '#FDDB92', '#D4FC79'
+    ];
+
+    // 1. Graphique Doughnut (Présences vs Absences)
+    const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+    new Chart(doughnutCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Présences', 'Absences'],
+            datasets: [{
+                data: [{{ presences_count }}, {{ absences_count }}],
+        backgroundColor: [
+            'rgba(46, 204, 113, 0.85)',
+            'rgba(231, 76, 60, 0.85)'
+        ],
+        borderColor: ['#27ae60', '#c0392b'],
+        borderWidth: 2,
+        hoverOffset: 15
+    }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    font: { size: 13, weight: '600' },
+                    usePointStyle: true,
+                    pointStyleWidth: 15
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(26, 32, 44, 0.9)',
+                padding: 12,
+                titleFont: { size: 14, weight: '700' },
+                bodyFont: { size: 13 },
+                cornerRadius: 8,
+                callbacks: {
+                    label: function (ctx) {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+                    }
+                }
+            }
+        }
+    }
+    });
+
+    // 2. Graphique Bar (Taux de présence par étudiant)
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    const labels = {{ chart_labels | tojson }};
+    const pourcentages = {{ chart_pourcentages | tojson }};
+    const presencesData = {{ chart_presences | tojson }};
+    const absencesData = {{ chart_absences | tojson }};
+
+    // Gradient colors per bar
+    const barColors = pourcentages.map((pct, i) => {
+        if (pct >= 75) return 'rgba(46, 204, 113, 0.8)';
+        if (pct >= 50) return 'rgba(241, 196, 15, 0.8)';
+        return 'rgba(231, 76, 60, 0.8)';
+    });
+
+    const barBorders = pourcentages.map((pct) => {
+        if (pct >= 75) return '#27ae60';
+        if (pct >= 50) return '#f39c12';
+        return '#c0392b';
+    });
+
+    new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Taux de Présence (%)',
+                data: pourcentages,
+                backgroundColor: barColors,
+                borderColor: barBorders,
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: labels.length > 8 ? 'y' : 'x',
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: val => val + '%',
+                        font: { size: 12 }
+                    },
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { size: 11, weight: '600' }
+                    },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(26, 32, 44, 0.9)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    titleFont: { size: 14, weight: '700' },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function (ctx) {
+                            const i = ctx.dataIndex;
+                            return [
+                                `Taux: ${ctx.raw}%`,
+                                `Présences: ${presencesData[i]}`,
+                                `Absences: ${absencesData[i]}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+<style>
+    /* Statistiques page styles */
+    .stats-info h3,
+    .charts-section h3,
+    .advanced-stats-section h3 {
+        margin-top: 2.5rem;
+        margin-bottom: 1.5rem;
+        color: #667eea;
+        font-size: 1.3rem;
+    }
+
+    /* Charts */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 2rem;
+        margin: 1.5rem 0;
+    }
+
+    .chart-card {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        border: 1px solid var(--border-color);
+    }
+
+    .chart-card h4 {
+        color: var(--text-dark);
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .chart-container {
+        position: relative;
+        max-width: 280px;
+        margin: 0 auto;
+    }
+
+    .chart-container-large {
+        max-width: 100%;
+        height: 300px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-nom {
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 0.8rem;
+        font-size: 1rem;
+    }
+
+    .stat-count {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .count-number {
+        font-size: 2rem;
+        font-weight: 900;
+        color: #667eea;
+    }
+
+    .count-text {
+        color: #718096;
+        font-size: 0.85rem;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.8rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        transition: width 0.6s ease;
+        border-radius: 4px;
+    }
+
+    .fill-good {
+        background: linear-gradient(90deg, #2ecc71, #27ae60);
+    }
+
+    .fill-warning {
+        background: linear-gradient(90deg, #f1c40f, #f39c12);
+    }
+
+    .fill-danger {
+        background: linear-gradient(90deg, #e74c3c, #c0392b);
+    }
+
+    .stat-detail-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .mini-badge {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    .mini-present {
+        background: rgba(46, 204, 113, 0.15);
+        color: #27ae60;
+    }
+
+    /* Advanced Stats */
+    .advanced-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .advanced-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.8rem;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .advanced-stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -30%;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .advanced-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-present {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-left: 5px solid #2ecc71;
+    }
+
+    .card-absent {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border-left: 5px solid #e74c3c;
+    }
+
+    .advanced-stat-icon {
+        font-size: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .advanced-stat-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .advanced-stat-title {
+        font-size: 0.85rem;
+        color: #718096;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .advanced-stat-name {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--text-dark);
+    }
+
+    .advanced-stat-details {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.3rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.7rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    .detail-badge.present {
+        background: rgba(46, 204, 113, 0.2);
+        color: #27ae60;
+    }
+
+    .detail-badge.absent {
+        background: rgba(231, 76, 60, 0.2);
+        color: #c0392b;
+    }
+
+    .detail-badge.percentage {
+        background: rgba(102, 126, 234, 0.15);
+        color: #667eea;
+    }
+
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-container-large {
+            height: 250px;
+        }
+
+        .advanced-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

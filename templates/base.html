@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EduFlow-Check{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>🎓 EduFlow-Check</h1>
+            <p class="subtitle">Système de Pointage Automatisé</p>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('accueil') }}" class="nav-link">Accueil</a>
+            <a href="{{ url_for('ajouter') }}" class="nav-link">Ajouter Étudiant</a>
+            <a href="{{ url_for('statistiques') }}" class="nav-link">Statistiques</a>
+            <a href="{{ url_for('historique') }}" class="nav-link">Historique</a>
+            <a href="{{ url_for('reinitialiser') }}" class="nav-link danger">Réinitialiser</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2026 EduFlow-Check - Système de Pointage pour Formation | Intervenant : KHNIFIRA Houssam</p>
+    </footer>
+</body>
+</html>
