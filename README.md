@@ -209,4 +209,4 @@ pip freeze > requirements.txt
 
 ---
 
-**Développé avec ❤️ par KHNIFIRA Houssam**
+**Développé avec ❤️ par AHMED ZAKARIA**
